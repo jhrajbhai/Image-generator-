@@ -1,0 +1,189 @@
+import React, { useState } => {
+  const [prompt, setPrompt] = useState(''); // State for the user's text prompt
+  const [imageUrl, setImageUrl] = useState(''); // State for the generated image URL
+  const [isLoading, setIsLoading] = useState(false); // State to manage loading status
+  const [error, setError] = useState(''); // State to manage error messages
+
+  // Function to handle image generation
+  const generateImage = async () => {
+    if (!prompt.trim()) {
+      setError('Please enter a prompt to generate an image.');
+      return;
+    }
+
+    setIsLoading(true); // Set loading to true
+    setError(''); // Clear any previous errors
+    setImageUrl(''); // Clear previous image
+
+    try {
+      // Define the payload for the image generation API call
+      const payload = {
+        instances: { prompt: prompt },
+        parameters: { "sampleCount": 1 }
+      };
+
+      // API key (empty string for Canvas runtime injection)
+      const apiKey = "";
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`;
+
+      // Fetch call to the Gemini API for image generation
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const result = await response.json();
+
+      // Check if image data is present in the response
+      if (result.predictions && result.predictions.length > 0 && result.predictions[0].bytesBase64Encoded) {
+        const generatedImageUrl = `data:image/png;base64,${result.predictions[0].bytesBase64Encoded}`;
+        setImageUrl(generatedImageUrl); // Set the generated image URL
+      } else {
+        setError('Failed to generate image. Please try again.');
+        console.error('Image generation failed:', result);
+      }
+    } catch (err) {
+      console.error('Error generating image:', err);
+      setError('An error occurred during image generation. Please try again.');
+    } finally {
+      setIsLoading(false); // Set loading to false regardless of success or failure
+    }
+  };
+
+  // Function to handle image download
+  const downloadImage = () => {
+    if (imageUrl) {
+      const link = document.createElement('a'); // Create a temporary anchor element
+      link.href = imageUrl; // Set the href to the image URL
+      link.download = 'generated_image.png'; // Set the download filename
+      document.body.appendChild(link); // Append link to body
+      link.click(); // Programmatically click the link to trigger download
+      document.body.removeChild(link); // Remove the link after download
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-purple-600 to-blue-800 text-white p-4 flex flex-col items-center justify-center font-inter antialiased">
+      <div className="w-full max-w-2xl bg-gray-900 bg-opacity-80 rounded-3xl shadow-2xl p-6 md:p-8 space-y-8 transform transition-all duration-500 ease-in-out hover:scale-[1.01]">
+        <h1 className="text-4xl md:text-5xl font-extrabold text-center mb-6 bg-clip-text text-transparent bg-gradient-to-r from-pink-400 to-yellow-300 animate-pulse-light">
+          Image Generator
+        </h1>
+
+        {/* Input section */}
+        <div className="relative">
+          <textarea
+            className="w-full p-4 pr-12 bg-gray-800 rounded-xl border border-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-white placeholder-gray-400 shadow-inner resize-none h-32 md:h-40 transition-all duration-300 ease-in-out text-base"
+            placeholder="Describe your dream image: e.g., 'A futuristic city skyline at sunset with flying cars and a serene river.'"
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            rows="4"
+          ></textarea>
+          <Sparkles className="absolute right-4 top-4 text-pink-300 opacity-60 pointer-events-none" size={24} />
+        </div>
+
+        {/* Generate Button */}
+        <button
+          onClick={generateImage}
+          disabled={isLoading}
+          className="w-full flex items-center justify-center px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-bold rounded-xl shadow-lg hover:from-blue-600 hover:to-purple-700 transition-all duration-300 ease-in-out transform hover:-translate-y-1 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none relative overflow-hidden"
+        >
+          {isLoading ? (
+            <span className="flex items-center">
+              <Loader2 className="animate-spin mr-3" size={20} />
+              Generating...
+            </span>
+          ) : (
+            <span className="flex items-center">
+              <Wand2 className="mr-3" size={20} />
+              Generate Image
+            </span>
+          )}
+          <span className="absolute inset-0 bg-white opacity-0 hover:opacity-10 transition-opacity duration-300 ease-in-out"></span>
+        </button>
+
+        {/* Error message display */}
+        {error && (
+          <div className="bg-red-800 bg-opacity-70 text-white p-3 rounded-xl text-center text-sm animate-fade-in transition-all duration-300 ease-in-out">
+            {error}
+          </div>
+        )}
+
+        {/* Image Display and Download Section */}
+        {imageUrl && (
+          <div className="space-y-6 animate-fade-in-up transition-all duration-500 ease-out">
+            <h2 className="text-2xl font-semibold text-center text-pink-200 flex items-center justify-center gap-2">
+              <Image size={24} /> Your Masterpiece
+            </h2>
+            <div className="relative w-full aspect-square bg-gray-800 rounded-2xl overflow-hidden shadow-xl border border-purple-500 flex items-center justify-center">
+              <img
+                src={imageUrl}
+                alt="Generated Art"
+                className="w-full h-full object-cover rounded-2xl animate-image-fade-in"
+                // Placeholder image in case the generated image fails to load
+                onError={(e) => {
+                  e.target.onerror = null; // Prevent infinite loop
+                  e.target.src = "https://placehold.co/500x500/374151/FFFFFF?text=Image+Load+Error";
+                }}
+              />
+            </div>
+            <button
+              onClick={downloadImage}
+              className="w-full flex items-center justify-center px-6 py-3 bg-gradient-to-r from-green-500 to-teal-600 text-white font-bold rounded-xl shadow-lg hover:from-green-600 hover:to-teal-700 transition-all duration-300 ease-in-out transform hover:-translate-y-1 hover:scale-105 relative overflow-hidden"
+            >
+              <Download className="mr-3" size={20} />
+              Download Image
+              <span className="absolute inset-0 bg-white opacity-0 hover:opacity-10 transition-opacity duration-300 ease-in-out"></span>
+            </button>
+          </div>
+        )}
+
+        {/* Footer for credits or extra info */}
+        <p className="text-center text-gray-400 text-sm mt-8">
+          Powered by AI
+        </p>
+      </div>
+
+      {/* Tailwind CSS configuration - including custom animations */}
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+
+        @keyframes pulse-light {
+          0%, 100% { filter: brightness(1); }
+          50% { filter: brightness(1.2); }
+        }
+        .animate-pulse-light {
+          animation: pulse-light 2s infinite ease-in-out;
+        }
+
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        .animate-fade-in {
+          animation: fadeIn 0.5s ease-out forwards;
+        }
+
+        @keyframes fadeInUp {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in-up {
+          animation: fadeInUp 0.6s ease-out forwards;
+        }
+
+        @keyframes imageFadeIn {
+          from { opacity: 0; transform: scale(0.95); }
+          to { opacity: 1; transform: scale(1); }
+        }
+        .animate-image-fade-in {
+          animation: imageFadeIn 0.7s ease-out forwards;
+        }
+      `}</style>
+    </div>
+  );
+};
+
+export default App;
+
