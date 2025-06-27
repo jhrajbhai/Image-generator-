@@ -1,2 +1,1 @@
-# Image-generator-
-Advanced image generator app 
+# tic-tac-toe-game
